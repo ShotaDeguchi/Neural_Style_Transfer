@@ -32,9 +32,9 @@ def arg_parser():
     parser = argparse.ArgumentParser(description="neural style transfer")
     parser.add_argument("-a", "--content-weight", type=float, default=1e1, help="content weight")
     parser.add_argument("-b", "--style-weight", type=float, default=1e5, help="style weight")
-    parser.add_argument("-c", "--tv-weight", type=float, default=1e1, help="total variation weight")
+    parser.add_argument("-c", "--tv-weight", type=float, default=1e0, help="total variation weight")
     parser.add_argument("--learning-rate", type=float, default=1e-3, help="learning rate")
-    parser.add_argument("--epochs", type=int, default=200, help="epochs")
+    parser.add_argument("-e", "--epochs", type=int, default=200, help="epochs")
     parser.add_argument("--batch-size", type=int, default=64, help="batch size")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     args = parser.parse_args()
@@ -79,10 +79,10 @@ def main():
     # style_image = image_loader(os.path.join("images", "vangogh.jpg"))
 
     # content image (main content)
-    # content_image = image_loader(os.path.join("images", "dancing.jpg"))
+    content_image = image_loader(os.path.join("images", "dancing.jpg"))
     # content_image = image_loader(os.path.join("images", "labrador.jpg"))
     # content_image = image_loader(os.path.join("images", "vermeer.jpg"))
-    content_image = image_loader(os.path.join("images", "monalisa.jpg"))
+    # content_image = image_loader(os.path.join("images", "monalisa.jpg"))
 
     # check style and content images are in the same size
     assert style_image.size() == content_image.size(), "style and content images are not in the same size"
@@ -287,13 +287,9 @@ def main():
 
                 for style_loss in style_losses:
                     style_score += style_loss.loss
-                    # print(style_loss)
-                    # print(style_loss.loss)
                 for content_loss in content_losses:
                     content_score += content_loss.loss
                 for tv_loss in tv_losses:
-                    # print(tv_loss)
-                    # print(tv_loss.loss)
                     tv_score += tv_loss.loss
 
                 style_score *= style_weight
@@ -319,9 +315,17 @@ def main():
 
             optimizer.step(closure)
 
-        # a last correction
-        with torch.inference_mode():
-            input_image.data.clamp_(0, 1)
+            # a last correction
+            with torch.inference_mode():
+                input_image.data.clamp_(0, 1)
+
+            # see the result every 50 steps
+            if run[0] % 20 == 0:
+                plt.figure()
+                imshow(input_image, title=f"Output Image at step {run[0]}")
+                # plt.savefig(f"images/output_{run[0]}.jpg")
+                plt.savefig("images/output.jpg")
+                plt.close()
 
         return input_image
 

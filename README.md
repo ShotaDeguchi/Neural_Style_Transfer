@@ -12,4 +12,4 @@ python main.py
 ## Results
 | Content Image | Style Image | Output Image |
 | :---: | :---: | :---: |
-| <img src="images/matisse.jpg" height="320px"> | <img src="images/dancing.jpg" height="320px"> | <img src="images/output.jpg" height="320px"> |
+| <img src="images/dancing.jpg" height="320px"> | <img src="images/matisse.jpg" height="320px"> | <img src="images/output.jpg" height="320px"> |

@@ -30,14 +30,11 @@ import PIL.Image as Image
 
 def arg_parser():
     parser = argparse.ArgumentParser(description="neural style transfer")
-
-    parser.add_argument("--style-weight", type=float, default=1e6, help="style weight")
-    parser.add_argument("--content-weight", type=float, default=1e0, help="content weight")
-    parser.add_argument("--tv-weight", type=float, default=1e-3, help="total variation weight")
-
+    parser.add_argument("-a", "--content-weight", type=float, default=1e1, help="content weight")
+    parser.add_argument("-b", "--style-weight", type=float, default=1e5, help="style weight")
+    parser.add_argument("-c", "--tv-weight", type=float, default=1e1, help="total variation weight")
     parser.add_argument("--learning-rate", type=float, default=1e-3, help="learning rate")
-
-    parser.add_argument("--epochs", type=int, default=500, help="epochs")
+    parser.add_argument("--epochs", type=int, default=200, help="epochs")
     parser.add_argument("--batch-size", type=int, default=64, help="batch size")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     args = parser.parse_args()
@@ -141,18 +138,15 @@ def main():
             self.loss = F.mse_loss(input=G, target=self.target)
             return input
 
-    # # total variation loss
-    # class TVLoss(nn.Module):
-    #     def __init__(self):
-    #         super().__init__()
+    # total variation loss
+    class TVLoss(nn.Module):
+        def __init__(self):
+            super().__init__()
 
-    #     def forward(self, input):
-    #         a, b, c, d = input.size()
-    #         self.loss = (
-    #             F.l1_loss(input[:, :, 1:, :], input[:, :, :-1, :]) +
-    #             F.l1_loss(input[:, :, :, 1:], input[:, :, :, :-1])
-    #         )
-    #         return input
+        def forward(self, input):
+            self.loss = F.l1_loss(input[:, :, 1:, :], input[:, :, :-1, :]) \
+                        + F.l1_loss(input[:, :, :, 1:], input[:, :, :, :-1])
+            return input
 
     # import pretrained model
     vgg19 = torchvision.models.vgg19(weights=models.VGG19_Weights.DEFAULT)
@@ -181,16 +175,18 @@ def main():
     # desired depth layers to compute style/content losses
     content_layers = ["conv_4"]
     style_layers = ["conv_1", "conv_2", "conv_3", "conv_4", "conv_5"]
+    tv_layers = ["conv_1", "conv_2", "conv_3", "conv_4"]
 
     def get_style_model_and_losses(
         cnn, normalization_mean, normalization_std, 
-        style_image, content_image, content_layers, style_layers
+        style_image, content_image, content_layers, style_layers, tv_layers
     ):
         # normalization module
         normalization = Normalization(normalization_mean, normalization_std)
 
         content_losses = []
         style_losses = []
+        tv_losses = []
 
         model = nn.Sequential(normalization)
 
@@ -227,6 +223,13 @@ def main():
                 model.add_module(f"style_loss_{i}", style_loss)
                 style_losses.append(style_loss)
 
+            if name in tv_layers:
+                # add total variation loss
+                print(f"adding total variation loss at '{name}'")
+                tv_loss = TVLoss()
+                model.add_module(f"tv_loss_{i}", tv_loss)
+                tv_losses.append(tv_loss)
+
         # trim off the layers after the last content and style losses
         for i in range(len(model) - 1, -1, -1):
             if isinstance(model[i], ContentLoss) or isinstance(model[i], StyleLoss):
@@ -234,7 +237,7 @@ def main():
 
         model = model[:(i + 1)]
 
-        return model, style_losses, content_losses
+        return model, style_losses, content_losses, tv_losses
 
     # now we select the input image
     input_image = content_image.clone()
@@ -250,12 +253,12 @@ def main():
     def run_style_transfer(
             cnn, normalization_mean, normalization_std,
             content_image, style_image, input_image,
-            optimizer, num_steps=300, style_weight=1e6, content_weight=1e1
+            optimizer, num_steps, style_weight, content_weight, tv_weight
         ):
         print("building the style transfer model...")
-        model, style_losses, content_losses = get_style_model_and_losses(
+        model, style_losses, content_losses, tv_losses = get_style_model_and_losses(
             cnn, normalization_mean, normalization_std, 
-            style_image, content_image, content_layers, style_layers
+            style_image, content_image, content_layers, style_layers, tv_layers
         )
 
         # we want to optimize the input image, not the model parameters
@@ -280,23 +283,37 @@ def main():
 
                 style_score = 0
                 content_score = 0
+                tv_score = 0
 
                 for style_loss in style_losses:
                     style_score += style_loss.loss
+                    # print(style_loss)
+                    # print(style_loss.loss)
                 for content_loss in content_losses:
                     content_score += content_loss.loss
+                for tv_loss in tv_losses:
+                    # print(tv_loss)
+                    # print(tv_loss.loss)
+                    tv_score += tv_loss.loss
 
                 style_score *= style_weight
                 content_score *= content_weight
+                tv_score *= tv_weight
 
-                loss = style_score + content_score
+                loss = style_score + content_score + tv_score
                 loss.backward()
 
                 run[0] += 1
                 t1 = time.perf_counter()
                 elps = t1 - t0
                 if run[0] % 20 == 0:
-                    print(f"run: {run[0]}, style loss: {style_score.item():.3f}, content loss: {content_score.item():.3f}, elapsed time: {elps:.3f} sec")
+                    log = f"run: {run[0]}, " \
+                            f"style loss: {style_score.item():.3f}, " \
+                            f"content loss: {content_score.item():.3f}, " \
+                            f"tv loss: {tv_score.item():.3f}, " \
+                            f"total loss: {loss.item():.3f}, " \
+                            f"time: {elps:.3f} sec"
+                    print(log)
 
                 return style_score + content_score
 
@@ -312,7 +329,11 @@ def main():
     output = run_style_transfer(
         vgg19, normalization_mean, normalization_std,
         content_image, style_image, input_image,
-        optimizer, num_steps=400, style_weight=args.style_weight, content_weight=args.content_weight
+        optimizer,
+        num_steps=args.epochs,
+        style_weight=args.style_weight,
+        content_weight=args.content_weight,
+        tv_weight=args.tv_weight
     )
 
     # show output image

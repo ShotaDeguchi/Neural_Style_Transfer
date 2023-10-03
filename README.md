@@ -6,7 +6,7 @@ This is a PyTorch implementation of the paper [A Neural Algorithm of Artistic St
 ## Usage
 ### Style Transfer
 ```
-python train.py
+python main.py
 ```
 
 ## Results

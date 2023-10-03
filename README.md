@@ -13,5 +13,10 @@ see command line options with:
 python train.py --help
 ```
 
+## Results
+show content image, style image and output image in table
+| Content Image | Style Image | Output Image |
+| ------------- | ----------- | ------------ |
+| ![](images/matisse.jpg) | ![](images/dancing.jpg) | ![](images/output.jpg) |
 
 

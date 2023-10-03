@@ -8,15 +8,8 @@ This is a PyTorch implementation of the paper [A Neural Algorithm of Artistic St
 ```
 python train.py
 ```
-see command line options with:
-```
-python train.py --help
-```
 
 ## Results
-show content image, style image and output image in table
 | Content Image | Style Image | Output Image |
-| ------------- | ----------- | ------------ |
-| ![](images/matisse.jpg) | ![](images/dancing.jpg) | ![](images/output.jpg) |
-
-
+| :---: | :---: | :---: |
+| <img src="images/matisse.jpg" height="320px"> | <img src="images/dancing.jpg" height="320px"> | <img src="images/output.jpg" height="320px"> |

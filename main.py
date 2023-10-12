@@ -81,8 +81,9 @@ def main():
     # content image (main content)
     content_image = image_loader(os.path.join("images", "dancing.jpg"))
     # content_image = image_loader(os.path.join("images", "labrador.jpg"))
-    # content_image = image_loader(os.path.join("images", "vermeer.jpg"))
     # content_image = image_loader(os.path.join("images", "monalisa.jpg"))
+    # content_image = image_loader(os.path.join("images", "vermeer.jpg"))
+    # content_image = image_loader(os.path.join("images", "melkmeid.jpg"))
 
     # check style and content images are in the same size
     assert style_image.size() == content_image.size(), "style and content images are not in the same size"
@@ -95,7 +96,7 @@ def main():
         if title is not None:
             plt.title(title)
         plt.axis("off")
-        plt.pause(3)
+        plt.pause(1)
 
     # show style and content images
     plt.figure()
@@ -260,6 +261,7 @@ def main():
             cnn, normalization_mean, normalization_std, 
             style_image, content_image, content_layers, style_layers, tv_layers
         )
+        print(f"model: {model}")
 
         # we want to optimize the input image, not the model parameters
         input_image.requires_grad_(True)
